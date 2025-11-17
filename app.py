@@ -1,9 +1,14 @@
+import sys
+import os
 import io
 from datetime import datetime
 from bson.objectid import ObjectId
 
+# === VIP FIX FOR RENDER / ModuleNotFound ===
+# Ensure current directory is in Python path so 'utils' folder is found
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 from flask import Flask, render_template, request, redirect, url_for, session, flash, send_file
-# Ensure the utils import is correct, assuming your project structure is 'utils/database.py' etc.
 from utils.database import users_col, quizzes_col, results_col
 from utils.auth import hash_password, verify_password
 import config
@@ -12,14 +17,13 @@ app = Flask(__name__)
 app.secret_key = config.SECRET_KEY
 
 # ============================
-# VIP FIX FOR RECURSION ERROR
-# (Injects current_year into ALL templates automatically)
+# VIP FIX FOR TEMPLATE (recursion/error)
+# Inject current_year into all templates automatically
 # ============================
 @app.context_processor
 def inject_current_year():
     return {'current_year': datetime.now().year}
 # === END FIX ===
-
 
 # ============================
 # Generate Employee ID
