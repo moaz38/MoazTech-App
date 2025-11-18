@@ -1,8 +1,8 @@
-import sys
-import os
 import io
 from datetime import datetime
 from bson.objectid import ObjectId
+import os # <-- Zaroori hai
+import sys # <-- Zaroori hai
 
 # === VIP FIX FOR RENDER / ModuleNotFound ===
 # Ensure current directory is in Python path so 'utils' folder is found
@@ -11,19 +11,30 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from flask import Flask, render_template, request, redirect, url_for, session, flash, send_file
 from utils.database import users_col, quizzes_col, results_col
 from utils.auth import hash_password, verify_password
-import config
+# import config (REMOVED - Ab iski zaroorat nahi)
 
 app = Flask(__name__)
-app.secret_key = config.SECRET_KEY
+
+# === VIP DEPLOYMENT FIX ===
+# Render.com ke liye Environment Variables istemal karein
+# Hum ab 'config.py' ki jagah direct 'os.environ.get()' use kar rahe hain
+app.secret_key = os.environ.get('SECRET_KEY', 'moaztech_supersecret_123!@#')
+ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', 'admin@moaztech.com')
+ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'Admin123!')
+PASSING_PERCENT = int(os.environ.get('PASSING_PERCENT', 70))
+MAX_ATTEMPTS = int(os.environ.get('MAX_ATTEMPTS', 1))
+# === END FIX ===
+
 
 # ============================
-# VIP FIX FOR TEMPLATE (recursion/error)
-# Inject current_year into all templates automatically
+# VIP FIX FOR RECURSION ERROR
+# (Injects current_year into all templates automatically)
 # ============================
 @app.context_processor
 def inject_current_year():
     return {'current_year': datetime.now().year}
 # === END FIX ===
+
 
 # ============================
 # Generate Employee ID
@@ -35,6 +46,7 @@ def generate_employee_id():
 
 # ============================
 # Default Quiz Questions
+# (Yeh code waisa hi hai, ismein koi change nahi)
 # ============================
 DEFAULT_QUIZ = {
     "questions": [
@@ -65,6 +77,7 @@ DEFAULT_QUIZ = {
         }
     ]
 }
+
 
 # ============================
 # Home Page
@@ -114,8 +127,8 @@ def login():
         email = request.form.get('email').strip().lower()
         password = request.form.get('password')
 
-        # Admin login
-        if email == config.ADMIN_EMAIL and password == config.ADMIN_PASSWORD:
+        # Admin login (CHANGED: Uses ENV Variable)
+        if email == ADMIN_EMAIL and password == ADMIN_PASSWORD:
             session['user_id'] = "admin"
             flash("Welcome Admin!", "success")
             return redirect(url_for('admin'))
@@ -163,7 +176,7 @@ def instructions():
         return redirect(url_for('dashboard'))
 
     # current_year = datetime.now().year (REMOVED: Now automatic)
-    return render_template("instructions.html", user=user, passing=config.PASSING_PERCENT) # (REMOVED: current_year)
+    return render_template("instructions.html", user=user, passing=PASSING_PERCENT) # (CHANGED & REMOVED: current_year)
 
 # ============================
 # Start Quiz
@@ -187,8 +200,8 @@ def start_quiz():
     # Retrieve the user's latest attempts count from the database
     current_attempts = user.get('attempts', 0)
     
-    if current_attempts >= config.MAX_ATTEMPTS: # Using MAX_ATTEMPTS from config
-        flash(f"You have already used your maximum attempt limit ({config.MAX_ATTEMPTS}).", "warning")
+    if current_attempts >= MAX_ATTEMPTS: # (CHANGED)
+        flash(f"You have already used your maximum attempt limit ({MAX_ATTEMPTS}).", "warning")
         return redirect(url_for('instructions'))
 
     # Find the quiz from database
@@ -262,7 +275,7 @@ def quiz():
         status = 'failed'
         employee_id = None
 
-        if percent >= config.PASSING_PERCENT:
+        if percent >= PASSING_PERCENT: # (CHANGED)
             status = 'approved'
             employee_id = generate_employee_id()
             users_col.update_one({'_id': ObjectId(uid)}, {
@@ -301,7 +314,8 @@ def quiz():
             percent=percent,
             status=status,
             employee_id=employee_id,
-            user=user
+            user=user,
+            passing=PASSING_PERCENT # (CHANGED)
             # current_year=current_year (REMOVED: Now automatic)
         )
 
